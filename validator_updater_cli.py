@@ -62,125 +62,12 @@ while True:
     else:
         print("Invalid client. Please try again.")
 
-consensus_client = consensus_client.lower()
-consensus_client_cap = consensus_client.capitalize()
-
-
 # Variables
 
 execution_client = execution_client.lower()
 consensus_client = consensus_client.lower()
 
 
-########### STOP SERVICES ###############
-print("\n########### STOPPING SERVICES ###############\n")
-# Stop services based on user input
-# if execution_client == "geth":
-#     print("Stopping geth service")
-#     subprocess.run(['sudo', 'systemctl', 'stop', 'geth'])
-
-# if execution_client == "besu":
-#     print("Stopping besu service")
-#     subprocess.run(['sudo', 'systemctl', 'stop', 'besu'])
-
-# if consensus_client == "teku":
-#     print("Stopping teku service")
-#     subprocess.run(['sudo', 'systemctl', 'stop', 'teku'])
-
-# if consensus_client == "nimbus":
-#     print("Stopping nimbus service")
-#     subprocess.run(['sudo', 'systemctl', 'stop', 'nimbus'])
-
-
-# if consensus_client == "prysm":
-#     print("Stopping prysm beacon service")
-#     subprocess.run(['sudo', 'systemctl', 'stop', 'prysmbeacon'])
-#     print("Stopping prysm validator service")
-#     subprocess.run(['sudo', 'systemctl', 'stop', 'prysmvalidator'])
-
-
-
-# ############ GETH ##################
-# if execution_client == 'geth':
-#     # Define the URL of the Geth download page
-#     url = 'https://geth.ethereum.org/downloads/'
-
-#     # Send a GET request to the download page and retrieve the HTML response
-#     response = requests.get(url)
-#     html = response.text
-
-#     # Use regex to extract the URL of the latest Geth binary for Linux (amd64)
-#     match = re.search(r'href="(https://gethstore\.blob\.core\.windows\.net/builds/geth-linux-amd64-[0-9]+\.[0-9]+\.[0-9]+-[0-9a-f]+\.tar\.gz)"', html)
-#     if match:
-#         download_url = match.group(1)
-#         filename = os.path.expanduser('~/geth.tar.gz')
-#         print(f'Downloading {download_url}...')
-#         response = requests.get(download_url)
-#         with open(filename, 'wb') as f:
-#             f.write(response.content)
-#         print(f'Done! Binary saved to {filename}.')
-
-#         # Extract the contents of the tarball to the user's home folder
-#         with tarfile.open(filename, 'r:gz') as tar:
-#             dirname = tar.getnames()[0].split('/')[0]
-#             tar.extractall(os.path.expanduser('~'))
-
-#         # Remove the existing geth executable from /usr/local/bin if it exists
-#         if os.path.exists('/usr/local/bin/geth'):
-#             subprocess.run(['sudo', 'rm', '/usr/local/bin/geth'])
-#             print('Existing geth executable removed from /usr/local/bin.')
-
-#         # Copy the geth executable to /usr/local/bin
-#         src = os.path.expanduser(f'~/{dirname}/geth')
-#         subprocess.run(['sudo', 'cp', src, '/usr/local/bin/'])
-#         print('Geth executable copied to /usr/local/bin.')
-
-#         # Remove the downloaded file and extracted directory
-#         os.remove(filename)
-#         shutil.rmtree(os.path.expanduser(f'~/{dirname}'))
-#         print(f'Removed {filename} and directory {dirname}.')
-#         print(f'Download URL: {download_url}')
-#     else:
-#         print('Error: could not find download URL.')
-
-#     geth_version = download_url.split("/")[-2]
-
-# ############ BESU ##################
-# if execution_client == 'besu':
-# 	# Install OpenJDK-17-JRE
-# 	subprocess.run(["sudo", "apt", "-y", "install", "openjdk-17-jre"])
-
-# 	# Install libjemalloc-dev
-# 	subprocess.run(["sudo", "apt", "install", "-y", "libjemalloc-dev"])
-
-# 	# Get the latest version number
-# 	url = "https://api.github.com/repos/hyperledger/besu/releases/latest"
-# 	response = urllib.request.urlopen(url)
-# 	data = json.loads(response.read().decode("utf-8"))
-# 	latest_version = data['tag_name']
-
-# 	besu_version = latest_version
-
-# 	# Download the latest version
-# 	download_url = f"https://hyperledger.jfrog.io/hyperledger/besu-binaries/besu/{latest_version}/besu-{latest_version}.tar.gz"
-# 	urllib.request.urlretrieve(download_url, f"besu-{latest_version}.tar.gz")
-
-# 	# Extract the tar.gz file
-# 	with tarfile.open(f"besu-{latest_version}.tar.gz", "r:gz") as tar:
-# 	    tar.extractall()
-
-# 	# Remove the existing besu executable from /usr/local/bin if it exists
-# 	if os.path.exists('/usr/local/bin/besu'):
-# 	    subprocess.run(['sudo', 'rm', '-r', '/usr/local/bin/besu'])
-# 	    print('Existing Besu executable removed from /usr/local/bin.')
-
-# 	# Copy the extracted besu folder to /usr/local/bin/besu
-# 	subprocess.run(["sudo", "cp", "-a", f"besu-{latest_version}", "/usr/local/bin/besu"], check=True)
-
-# 	# Remove the downloaded .tar.gz file
-# 	os.remove(f"besu-{latest_version}.tar.gz")
-
-# 	print(f'\nSuccessfully installed besu-{latest_version}')
 
 ############ NETHERMIND ##################
 if execution_client == 'nethermind':
@@ -476,10 +363,4 @@ if consensus_client == 'lighthouse':
         lighthouse_version = ""
     print(f'Lighthouse Version: {lighthouse_version}\n')
 
-# MEV BOOST PRINT
-if mevboost_update == "yes":
-    # Check MEV-Boost version
-    output = subprocess.check_output(["mev-boost", "-version"], text=True)
-    version = output.split()[-1]
-    print(f"Mevboost Version: {output.split()[-1]}\n")
 
