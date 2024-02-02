@@ -23,13 +23,15 @@ except subprocess.CalledProcessError:
     print("Failed to verify sudo credentials.")
     exit(1)
 
-# Check if a user exists
-def user_exists(username):
-    try:
-        pwd.getpwnam(username)
-        return True
-    except KeyError:
-        return False
+try:
+    # Update and upgrade packages
+    subprocess.run(['sudo', 'apt', '-y', 'update'])
+    subprocess.run(['sudo', 'apt', '-y', 'upgrade'])
+    print("Finished apt upgrade")
+except subprocess.CalledProcessError:
+    print("Failed to run apt upgrade")
+    exit(1)
+
 
 # Prompt User to select an Ethereum execution client
 def is_valid_client(client):
@@ -63,102 +65,8 @@ while True:
 consensus_client = consensus_client.lower()
 consensus_client_cap = consensus_client.capitalize()
 
-# Prompt User to update MEVBoost
-while True:
-    mevboost_update = input("\nWould you like to update mevboost? (yes/no): ").strip().lower()
-    if mevboost_update in ['yes', 'no']:
-        break
-    else:
-        print("Invalid choice. Please enter 'yes' or 'no'.")
-
-if mevboost_update == 'yes':
-    print("Installing Go and MEVBoost...")
-    class GoReleaseLinkParser(HTMLParser):
-        def __init__(self):
-            super().__init__()
-            self.linux_links = []
-            self.capture = False
-
-        def handle_starttag(self, tag, attrs):
-            if tag == 'a':
-                for attr in attrs:
-                    if attr[0] == 'href' and 'linux-amd64' in attr[1]:
-                        self.linux_links.append(attr[1])
-                        break
-
-    def get_latest_go_linux_release():
-        """Fetch the latest Go release URL for Linux."""
-        try:
-            response = requests.get("https://go.dev/dl/")
-            response.raise_for_status()
-            parser = GoReleaseLinkParser()
-            parser.feed(response.text)
-            
-            if parser.linux_links:
-                return "https://go.dev" + parser.linux_links[0]
-            raise Exception("No 64-bit Linux release found")
-        except requests.RequestException as e:
-            raise Exception("Failed to load the Go downloads page") from e
-
-    def append_to_bashrc(content):
-        """Append content to .bashrc and update PATH."""
-        bashrc_path = os.path.expanduser("~/.bashrc")
-        with open(bashrc_path, 'a') as bashrc:
-            bashrc.write(content + '\n')
-        os.environ["PATH"] += os.pathsep + "/usr/local/go/bin"
-
-    def install_go(go_url):
-        """Install Go."""
-        subprocess.run(["sudo", "apt", "-y", "install", "build-essential"], check=True)
-        subprocess.run(["wget", "-O", "go.tar.gz", go_url], check=True)
-        subprocess.run(["sudo", "rm", "-rf", "/usr/local/go"], check=True)
-        subprocess.run(["sudo", "tar", "-C", "/usr/local", "-xzf", "go.tar.gz"], check=True)
-        os.remove("go.tar.gz")
-        append_to_bashrc('export PATH=$PATH:/usr/local/go/bin')
-
-    def install_mev_boost():
-        """Install MEV-Boost and configure its service."""
-        
-        # Check if 'mevboost' user already exists
-        if not user_exists('mevboost'):
-            # Create 'mevboost' user if it doesn't exist
-            subprocess.run(["sudo", "useradd", "--no-create-home", "--shell", "/bin/false", "mevboost"], check=True)
-
-        # Proceed with MEV-Boost installation
-        subprocess.run(['CGO_CFLAGS="-O -D__BLST_PORTABLE__" go install github.com/flashbots/mev-boost@latest'], shell=True)
-        mev_boost_path = os.path.join(os.path.expanduser("~"), "go/bin/mev-boost")
-        subprocess.run(["sudo", "cp", mev_boost_path, "/usr/local/bin"], check=True)
-        subprocess.run(["sudo", "chown", "mevboost:mevboost", "/usr/local/bin/mev-boost"], check=True)
-
-    # Main execution mev and go
-    if mevboost_update == "yes":
-        try:
-            # Install Go
-            go_url = get_latest_go_linux_release()
-            print("Latest Go 64-bit release for Linux:", go_url)
-            install_go(go_url)
-
-            # Install MEV-Boost
-            install_mev_boost()
-
-            # Version checks
-            print("\n##### Version Check #####\n")
-            
-            # Checking Go version
-            go_version_output = subprocess.check_output(["go", "version"], text=True)
-            print(go_version_output.strip())
-
-            # Checking MEV-Boost version
-            mev_boost_version_output = subprocess.check_output(["mev-boost", "--version"], text=True)
-            print(mev_boost_version_output.strip())
-
-            print("\n### Go and MEV-Boost Installation Complete ###\n")
-        except Exception as e:
-            print("Error:", e)
 
 # Variables
-
-mevboost_update = mevboost_update.lower()
 
 execution_client = execution_client.lower()
 consensus_client = consensus_client.lower()
@@ -167,137 +75,115 @@ consensus_client = consensus_client.lower()
 ########### STOP SERVICES ###############
 print("\n########### STOPPING SERVICES ###############\n")
 # Stop services based on user input
-if execution_client == "geth":
-    print("Stopping geth service")
-    subprocess.run(['sudo', 'systemctl', 'stop', 'geth'])
+# if execution_client == "geth":
+#     print("Stopping geth service")
+#     subprocess.run(['sudo', 'systemctl', 'stop', 'geth'])
 
-if execution_client == "besu":
-    print("Stopping besu service")
-    subprocess.run(['sudo', 'systemctl', 'stop', 'besu'])
+# if execution_client == "besu":
+#     print("Stopping besu service")
+#     subprocess.run(['sudo', 'systemctl', 'stop', 'besu'])
 
-if execution_client == "nethermind":
-    print("Stopping nethermind service")
-    subprocess.run(['sudo', 'systemctl', 'stop', 'nethermind'])
+# if consensus_client == "teku":
+#     print("Stopping teku service")
+#     subprocess.run(['sudo', 'systemctl', 'stop', 'teku'])
 
-if consensus_client == "teku":
-    print("Stopping teku service")
-    subprocess.run(['sudo', 'systemctl', 'stop', 'teku'])
+# if consensus_client == "nimbus":
+#     print("Stopping nimbus service")
+#     subprocess.run(['sudo', 'systemctl', 'stop', 'nimbus'])
 
-if consensus_client == "nimbus":
-    print("Stopping nimbus service")
-    subprocess.run(['sudo', 'systemctl', 'stop', 'nimbus'])
 
-if consensus_client == "lighthouse":
-    print("Stopping lighthouse beacon service")
-    subprocess.run(['sudo', 'systemctl', 'stop', 'lighthousebeacon'])
-    print("Stopping lighthouse validator service")
-    subprocess.run(['sudo', 'systemctl', 'stop', 'lighthousevalidator'])
+# if consensus_client == "prysm":
+#     print("Stopping prysm beacon service")
+#     subprocess.run(['sudo', 'systemctl', 'stop', 'prysmbeacon'])
+#     print("Stopping prysm validator service")
+#     subprocess.run(['sudo', 'systemctl', 'stop', 'prysmvalidator'])
 
-if consensus_client == "prysm":
-    print("Stopping prysm beacon service")
-    subprocess.run(['sudo', 'systemctl', 'stop', 'prysmbeacon'])
-    print("Stopping prysm validator service")
-    subprocess.run(['sudo', 'systemctl', 'stop', 'prysmvalidator'])
 
-# Check if mevboost_update is "mevboost" and stop mevboost service
-if mevboost_update == "yes":
-    print("Stopping mevboost service")
-    subprocess.run(['sudo', 'systemctl', 'stop', 'mevboost'])
 
-# Update and upgrade packages
-subprocess.run(['sudo', 'apt', '-y', 'update'])
-subprocess.run(['sudo', 'apt', '-y', 'upgrade'])
+# ############ GETH ##################
+# if execution_client == 'geth':
+#     # Define the URL of the Geth download page
+#     url = 'https://geth.ethereum.org/downloads/'
 
-############ GETH ##################
-if execution_client == 'geth':
-    # Define the URL of the Geth download page
-    url = 'https://geth.ethereum.org/downloads/'
+#     # Send a GET request to the download page and retrieve the HTML response
+#     response = requests.get(url)
+#     html = response.text
 
-    # Send a GET request to the download page and retrieve the HTML response
-    response = requests.get(url)
-    html = response.text
+#     # Use regex to extract the URL of the latest Geth binary for Linux (amd64)
+#     match = re.search(r'href="(https://gethstore\.blob\.core\.windows\.net/builds/geth-linux-amd64-[0-9]+\.[0-9]+\.[0-9]+-[0-9a-f]+\.tar\.gz)"', html)
+#     if match:
+#         download_url = match.group(1)
+#         filename = os.path.expanduser('~/geth.tar.gz')
+#         print(f'Downloading {download_url}...')
+#         response = requests.get(download_url)
+#         with open(filename, 'wb') as f:
+#             f.write(response.content)
+#         print(f'Done! Binary saved to {filename}.')
 
-    # Use regex to extract the URL of the latest Geth binary for Linux (amd64)
-    match = re.search(r'href="(https://gethstore\.blob\.core\.windows\.net/builds/geth-linux-amd64-[0-9]+\.[0-9]+\.[0-9]+-[0-9a-f]+\.tar\.gz)"', html)
-    if match:
-        download_url = match.group(1)
-        filename = os.path.expanduser('~/geth.tar.gz')
-        print(f'Downloading {download_url}...')
-        response = requests.get(download_url)
-        with open(filename, 'wb') as f:
-            f.write(response.content)
-        print(f'Done! Binary saved to {filename}.')
+#         # Extract the contents of the tarball to the user's home folder
+#         with tarfile.open(filename, 'r:gz') as tar:
+#             dirname = tar.getnames()[0].split('/')[0]
+#             tar.extractall(os.path.expanduser('~'))
 
-        # Extract the contents of the tarball to the user's home folder
-        with tarfile.open(filename, 'r:gz') as tar:
-            dirname = tar.getnames()[0].split('/')[0]
-            tar.extractall(os.path.expanduser('~'))
+#         # Remove the existing geth executable from /usr/local/bin if it exists
+#         if os.path.exists('/usr/local/bin/geth'):
+#             subprocess.run(['sudo', 'rm', '/usr/local/bin/geth'])
+#             print('Existing geth executable removed from /usr/local/bin.')
 
-        # Remove the existing geth executable from /usr/local/bin if it exists
-        if os.path.exists('/usr/local/bin/geth'):
-            subprocess.run(['sudo', 'rm', '/usr/local/bin/geth'])
-            print('Existing geth executable removed from /usr/local/bin.')
+#         # Copy the geth executable to /usr/local/bin
+#         src = os.path.expanduser(f'~/{dirname}/geth')
+#         subprocess.run(['sudo', 'cp', src, '/usr/local/bin/'])
+#         print('Geth executable copied to /usr/local/bin.')
 
-        # Copy the geth executable to /usr/local/bin
-        src = os.path.expanduser(f'~/{dirname}/geth')
-        subprocess.run(['sudo', 'cp', src, '/usr/local/bin/'])
-        print('Geth executable copied to /usr/local/bin.')
+#         # Remove the downloaded file and extracted directory
+#         os.remove(filename)
+#         shutil.rmtree(os.path.expanduser(f'~/{dirname}'))
+#         print(f'Removed {filename} and directory {dirname}.')
+#         print(f'Download URL: {download_url}')
+#     else:
+#         print('Error: could not find download URL.')
 
-        # Remove the downloaded file and extracted directory
-        os.remove(filename)
-        shutil.rmtree(os.path.expanduser(f'~/{dirname}'))
-        print(f'Removed {filename} and directory {dirname}.')
-        print(f'Download URL: {download_url}')
-    else:
-        print('Error: could not find download URL.')
+#     geth_version = download_url.split("/")[-2]
 
-    geth_version = download_url.split("/")[-2]
+# ############ BESU ##################
+# if execution_client == 'besu':
+# 	# Install OpenJDK-17-JRE
+# 	subprocess.run(["sudo", "apt", "-y", "install", "openjdk-17-jre"])
 
-############ BESU ##################
-if execution_client == 'besu':
-	# Install OpenJDK-17-JRE
-	subprocess.run(["sudo", "apt", "-y", "install", "openjdk-17-jre"])
+# 	# Install libjemalloc-dev
+# 	subprocess.run(["sudo", "apt", "install", "-y", "libjemalloc-dev"])
 
-	# Install libjemalloc-dev
-	subprocess.run(["sudo", "apt", "install", "-y", "libjemalloc-dev"])
+# 	# Get the latest version number
+# 	url = "https://api.github.com/repos/hyperledger/besu/releases/latest"
+# 	response = urllib.request.urlopen(url)
+# 	data = json.loads(response.read().decode("utf-8"))
+# 	latest_version = data['tag_name']
 
-	# Get the latest version number
-	url = "https://api.github.com/repos/hyperledger/besu/releases/latest"
-	response = urllib.request.urlopen(url)
-	data = json.loads(response.read().decode("utf-8"))
-	latest_version = data['tag_name']
+# 	besu_version = latest_version
 
-	besu_version = latest_version
+# 	# Download the latest version
+# 	download_url = f"https://hyperledger.jfrog.io/hyperledger/besu-binaries/besu/{latest_version}/besu-{latest_version}.tar.gz"
+# 	urllib.request.urlretrieve(download_url, f"besu-{latest_version}.tar.gz")
 
-	# Download the latest version
-	download_url = f"https://hyperledger.jfrog.io/hyperledger/besu-binaries/besu/{latest_version}/besu-{latest_version}.tar.gz"
-	urllib.request.urlretrieve(download_url, f"besu-{latest_version}.tar.gz")
+# 	# Extract the tar.gz file
+# 	with tarfile.open(f"besu-{latest_version}.tar.gz", "r:gz") as tar:
+# 	    tar.extractall()
 
-	# Extract the tar.gz file
-	with tarfile.open(f"besu-{latest_version}.tar.gz", "r:gz") as tar:
-	    tar.extractall()
+# 	# Remove the existing besu executable from /usr/local/bin if it exists
+# 	if os.path.exists('/usr/local/bin/besu'):
+# 	    subprocess.run(['sudo', 'rm', '-r', '/usr/local/bin/besu'])
+# 	    print('Existing Besu executable removed from /usr/local/bin.')
 
-	# Remove the existing besu executable from /usr/local/bin if it exists
-	if os.path.exists('/usr/local/bin/besu'):
-	    subprocess.run(['sudo', 'rm', '-r', '/usr/local/bin/besu'])
-	    print('Existing Besu executable removed from /usr/local/bin.')
+# 	# Copy the extracted besu folder to /usr/local/bin/besu
+# 	subprocess.run(["sudo", "cp", "-a", f"besu-{latest_version}", "/usr/local/bin/besu"], check=True)
 
-	# Copy the extracted besu folder to /usr/local/bin/besu
-	subprocess.run(["sudo", "cp", "-a", f"besu-{latest_version}", "/usr/local/bin/besu"], check=True)
+# 	# Remove the downloaded .tar.gz file
+# 	os.remove(f"besu-{latest_version}.tar.gz")
 
-	# Remove the downloaded .tar.gz file
-	os.remove(f"besu-{latest_version}.tar.gz")
-
-	print(f'\nSuccessfully installed besu-{latest_version}')
+# 	print(f'\nSuccessfully installed besu-{latest_version}')
 
 ############ NETHERMIND ##################
 if execution_client == 'nethermind':
-    # Create User and directories
-    subprocess.run(["sudo", "useradd", "--no-create-home", "--shell", "/bin/false", "nethermind"])
-    subprocess.run(["sudo", "mkdir", "-p", "/var/lib/nethermind"])
-    subprocess.run(["sudo", "chown", "-R", "nethermind:nethermind", "/var/lib/nethermind"])
-    subprocess.run(["sudo", "apt-get", "install", "libsnappy-dev", "libc6-dev", "libc6", "unzip", "-y"], check=True)
-
     # Define the Github API endpoint to get the latest release
     url = 'https://api.github.com/repos/NethermindEth/nethermind/releases/latest'
 
@@ -333,150 +219,145 @@ if execution_client == 'nethermind':
             zip_ref.extractall(temp_dir)
 
         # Copy the contents of the temporary directory to /usr/local/bin/nethermind using sudo
+        print("Stopping nethermind service")
+        subprocess.run(['sudo', 'systemctl', 'stop', 'nethermind'])
         subprocess.run(["sudo", "cp", "-a", f"{temp_dir}/.", "/usr/local/bin/nethermind"])
-
-    # chown nethermind:nethermind /usr/local/bin/nethermind
-    subprocess.run(["sudo", "chown", "nethermind:nethermind", "/usr/local/bin/nethermind"])
-
-    # chown nethermind:nethermind /usr/local/bin/nethermind/nethermind
-    subprocess.run(["sudo", "chown", "nethermind:nethermind", "/usr/local/bin/nethermind/nethermind"])
-
-    # chmod a+x /usr/local/bin/nethermind/nethermind
-    subprocess.run(["sudo", "chmod", "a+x", "/usr/local/bin/nethermind/nethermind"])
-
+        subprocess.run(['sudo', 'systemctl', 'daemon-reload'])
+        subprocess.run(['sudo', 'systemctl', 'start', 'nethermind'])
+        print("Restarted nethermind service")
     # Remove the temporary zip file
     os.remove(temp_path)
 
     nethermind_version = os.path.splitext(zip_filename)[0]
 
 ############ TEKU ##################
-if consensus_client == 'teku':
-    # Change to the home folder
-    os.chdir(os.path.expanduser("~"))
+# if consensus_client == 'teku':
+#     # Change to the home folder
+#     os.chdir(os.path.expanduser("~"))
 
-    # Define the Github API endpoint to get the latest release
-    url = 'https://api.github.com/repos/ConsenSys/teku/releases/latest'
+#     # Define the Github API endpoint to get the latest release
+#     url = 'https://api.github.com/repos/ConsenSys/teku/releases/latest'
 
-    # Send a GET request to the API endpoint
-    response = requests.get(url)
+#     # Send a GET request to the API endpoint
+#     response = requests.get(url)
 
-    # Get the latest release tag
-    latest_version = response.json()['tag_name']
+#     # Get the latest release tag
+#     latest_version = response.json()['tag_name']
 
-    # Define the download URL for the latest release
-    download_url = f"https://artifacts.consensys.net/public/teku/raw/names/teku.tar.gz/versions/{latest_version}/teku-{latest_version}.tar.gz"
-    teku_version = latest_version
-    # Download the latest release binary
-    response = requests.get(download_url)
+#     # Define the download URL for the latest release
+#     download_url = f"https://artifacts.consensys.net/public/teku/raw/names/teku.tar.gz/versions/{latest_version}/teku-{latest_version}.tar.gz"
+#     teku_version = latest_version
+#     # Download the latest release binary
+#     response = requests.get(download_url)
 
-    # Save the binary to the home folder
-    with open('teku.tar.gz', 'wb') as f:
-        f.write(response.content)
+#     # Save the binary to the home folder
+#     with open('teku.tar.gz', 'wb') as f:
+#         f.write(response.content)
 
-    # Extract the binary to the home folder
-    with tarfile.open('teku.tar.gz', 'r:gz') as tar:
-        tar.extractall()
+#     # Extract the binary to the home folder
+#     with tarfile.open('teku.tar.gz', 'r:gz') as tar:
+#         tar.extractall()
 
-    # Copy the binary folder to /usr/local/bin using sudo
-    os.system(f"sudo cp -r teku-{latest_version} /usr/local/bin/teku")
+#     # Copy the binary folder to /usr/local/bin using sudo
+#     os.system(f"sudo cp -r teku-{latest_version} /usr/local/bin/teku")
 
-    # Remove the teku.tar.gz file and extracted binary folder
-    os.remove('teku.tar.gz')
-    shutil.rmtree(f'teku-{latest_version}')
+#     # Remove the teku.tar.gz file and extracted binary folder
+#     os.remove('teku.tar.gz')
+#     shutil.rmtree(f'teku-{latest_version}')
 
-    print("Teku binary installed successfully!")
-    print(f"Download URL: {download_url}")
-    print(f"teku-v{latest_version}")
+#     print("Teku binary installed successfully!")
+#     print(f"Download URL: {download_url}")
+#     print(f"teku-v{latest_version}")
 
 ################ PRYSM ###################
-if consensus_client == 'prysm':
-    base_url = "https://api.github.com/repos/prysmaticlabs/prysm/releases/latest"
-    response = requests.get(base_url)
-    response_json = response.json()
-    download_links = []
+# if consensus_client == 'prysm':
+#     base_url = "https://api.github.com/repos/prysmaticlabs/prysm/releases/latest"
+#     response = requests.get(base_url)
+#     response_json = response.json()
+#     download_links = []
 
-    for asset in response_json["assets"]:
-        if re.search(r'beacon-chain-v\d+\.\d+\.\d+-linux-amd64$', asset["browser_download_url"]):
-            download_links.append(asset["browser_download_url"])
-        elif re.search(r'validator-v\d+\.\d+\.\d+-linux-amd64$', asset["browser_download_url"]):
-            download_links.append(asset["browser_download_url"])
+#     for asset in response_json["assets"]:
+#         if re.search(r'beacon-chain-v\d+\.\d+\.\d+-linux-amd64$', asset["browser_download_url"]):
+#             download_links.append(asset["browser_download_url"])
+#         elif re.search(r'validator-v\d+\.\d+\.\d+-linux-amd64$', asset["browser_download_url"]):
+#             download_links.append(asset["browser_download_url"])
 
-    if len(download_links) >= 2:
-        for link in download_links[:2]:
-            cmd = f"curl -LO {link}"
-            os.system(cmd)
+#     if len(download_links) >= 2:
+#         for link in download_links[:2]:
+#             cmd = f"curl -LO {link}"
+#             os.system(cmd)
 
-        os.system("mv beacon-chain-*-linux-amd64 beacon-chain")
-        os.system("mv validator-*-linux-amd64 validator")
-        os.system("chmod +x beacon-chain")
-        os.system("chmod +x validator")
-        os.system("sudo cp beacon-chain /usr/local/bin")
-        os.system("sudo cp validator /usr/local/bin")
-        os.system("rm beacon-chain && rm validator")
-    else:
-        print("Error: Could not find the latest release links.")
+#         os.system("mv beacon-chain-*-linux-amd64 beacon-chain")
+#         os.system("mv validator-*-linux-amd64 validator")
+#         os.system("chmod +x beacon-chain")
+#         os.system("chmod +x validator")
+#         os.system("sudo cp beacon-chain /usr/local/bin")
+#         os.system("sudo cp validator /usr/local/bin")
+#         os.system("rm beacon-chain && rm validator")
+#     else:
+#         print("Error: Could not find the latest release links.")
 
-    prysm_version = link.split("/")[-1]
+#     prysm_version = link.split("/")[-1]
 
-    print(f"Successfully installed Prsym {prysm_version}")
+#     print(f"Successfully installed Prsym {prysm_version}")
 
 ################ NIMBUS ##################
-if consensus_client == 'nimbus':
-    # Change to the home folder
-    os.chdir(os.path.expanduser("~"))
+# if consensus_client == 'nimbus':
+#     # Change to the home folder
+#     os.chdir(os.path.expanduser("~"))
 
-    # Define the Github API endpoint to get the latest release
-    url = 'https://api.github.com/repos/status-im/nimbus-eth2/releases/latest'
+#     # Define the Github API endpoint to get the latest release
+#     url = 'https://api.github.com/repos/status-im/nimbus-eth2/releases/latest'
 
-    # Send a GET request to the API endpoint
-    response = requests.get(url)
+#     # Send a GET request to the API endpoint
+#     response = requests.get(url)
 
-    # Search for the asset with the name that ends in _Linux_amd64.tar.gz
-    assets = response.json()['assets']
-    download_url = None
-    for asset in assets:
-        if '_Linux_amd64' in asset['name'] and asset['name'].endswith('.tar.gz'):
-            download_url = asset['browser_download_url']
-            break
+#     # Search for the asset with the name that ends in _Linux_amd64.tar.gz
+#     assets = response.json()['assets']
+#     download_url = None
+#     for asset in assets:
+#         if '_Linux_amd64' in asset['name'] and asset['name'].endswith('.tar.gz'):
+#             download_url = asset['browser_download_url']
+#             break
 
-    if download_url is None:
-        print("Error: Could not find the download URL for the latest release.")
-        exit(1)
+#     if download_url is None:
+#         print("Error: Could not find the download URL for the latest release.")
+#         exit(1)
 
-    # Download the latest release binary
-    response = requests.get(download_url)
+#     # Download the latest release binary
+#     response = requests.get(download_url)
 
-    # Save the binary to the home folder
-    with open('nimbus.tar.gz', 'wb') as f:
-        f.write(response.content)
+#     # Save the binary to the home folder
+#     with open('nimbus.tar.gz', 'wb') as f:
+#         f.write(response.content)
 
-    # Extract the binary to the home folder
-    with tarfile.open('nimbus.tar.gz', 'r:gz') as tar:
-        tar.extractall()
+#     # Extract the binary to the home folder
+#     with tarfile.open('nimbus.tar.gz', 'r:gz') as tar:
+#         tar.extractall()
 
-    # Find the extracted folder
-    extracted_folder = None
-    for item in os.listdir():
-        if item.startswith("nimbus-eth2_Linux_amd64"):
-            extracted_folder = item
-            break
+#     # Find the extracted folder
+#     extracted_folder = None
+#     for item in os.listdir():
+#         if item.startswith("nimbus-eth2_Linux_amd64"):
+#             extracted_folder = item
+#             break
 
-    if extracted_folder is None:
-        print("Error: Could not find the extracted folder.")
-        exit(1)
+#     if extracted_folder is None:
+#         print("Error: Could not find the extracted folder.")
+#         exit(1)
 
-    # Copy the binary to /usr/local/bin using sudo
-    os.system(f"sudo cp {extracted_folder}/build/nimbus_beacon_node /usr/local/bin")
+#     # Copy the binary to /usr/local/bin using sudo
+#     os.system(f"sudo cp {extracted_folder}/build/nimbus_beacon_node /usr/local/bin")
 
-    # Remove the nimbus.tar.gz file and extracted folder
-    os.remove('nimbus.tar.gz')
-    os.system(f"rm -r {extracted_folder}")
+#     # Remove the nimbus.tar.gz file and extracted folder
+#     os.remove('nimbus.tar.gz')
+#     os.system(f"rm -r {extracted_folder}")
     
-    version = download_url.split("/")[-2]
+#     version = download_url.split("/")[-2]
 
-    print("Nimbus binary installed successfully!")
-    print(f"Download URL: {download_url}")
-    print(f"\nSuccessfully Installed Nimbus Version {version}")
+#     print("Nimbus binary installed successfully!")
+#     print(f"Download URL: {download_url}")
+#     print(f"\nSuccessfully Installed Nimbus Version {version}")
 
 ############ LIGHTHOUSE ##################
 if consensus_client == 'lighthouse':
@@ -511,9 +392,20 @@ if consensus_client == 'lighthouse':
     # Extract the binary to the home folder
     with tarfile.open('lighthouse.tar.gz', 'r:gz') as tar:
         tar.extractall()
+        
+    print("Stopping lighthouse beacon service")
+    subprocess.run(['sudo', 'systemctl', 'stop', 'lighthousebeacon'])
+    print("Stopping lighthouse validator service")
+    subprocess.run(['sudo', 'systemctl', 'stop', 'lighthousevalidator'])
 
     # Copy the binary to /usr/local/bin using sudo
     os.system("sudo cp lighthouse /usr/local/bin")
+    subprocess.run(['sudo', 'systemctl', 'daemon-reload'])
+    
+    print("Starting lighthouse beacon service")
+    subprocess.run(['sudo', 'systemctl', 'start', 'lighthousebeacon'])
+    print("Starting lighthouse validator service")
+    subprocess.run(['sudo', 'systemctl', 'start', 'lighthousevalidator'])
 
     # Remove the lighthouse.tar.gz file and extracted binary
     os.remove('lighthouse.tar.gz')
